@@ -87,15 +87,6 @@ struct ContentView: View {
             // Main content
             GeometryReader { geometry in
                 VStack(spacing: 0) {
-                    // Top bar with year navigation and view mode switcher
-                    HStack {
-                        Spacer()
-                        YearNavigationView(currentYear: $currentYear)
-                        Spacer()
-                        ViewModeSwitcher(selectedMode: $dataManager.viewMode)
-                    }
-                    .padding([.top, .trailing], 10)
-                    
                     // Content based on view mode
                     if dataManager.viewMode == .monthRows {
                         monthRowsView
@@ -112,6 +103,26 @@ struct ContentView: View {
                     Image(systemName: "sidebar.left")
                 }
             }
+            
+            ToolbarItem(placement: .principal) {
+                YearNavigationView(currentYear: $currentYear)
+            }
+            
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: goToCurrentYear) {
+                    Text("Today")
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.gray.opacity(0.1))
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Go to current year")
+                
+                ViewModeSwitcher(selectedMode: $dataManager.viewMode)
+            }
         }
         .sheet(isPresented: $dataManager.showingNewCalendarSheet) {
             NewCalendarView { newCalendar in
@@ -123,6 +134,10 @@ struct ContentView: View {
         .onCommand(#selector(NSDocumentController.newDocument(_:))) {
             dataManager.showNewCalendarSheet()
         }
+    }
+    
+    private func goToCurrentYear() {
+        currentYear = Foundation.Calendar.current.component(.year, from: Date())
     }
     
     // Month rows layout
