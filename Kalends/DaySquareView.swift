@@ -1,15 +1,17 @@
 import SwiftUI
+import Foundation
 
 struct DaySquareView: View {
     let day: Int
     let month: Int
     let year: Int
     let isMarked: Bool
+    let calendarColor: Color
     let onToggle: () -> Void
     
     @State private var isHovering = false
     
-    private let calendar = Calendar.current
+    private let calendar = Foundation.Calendar.current
     
     var body: some View {
         let isToday = isCurrentDay
@@ -22,7 +24,7 @@ struct DaySquareView: View {
                     ZStack {
                         if isMarked {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.pink.opacity(0.3))
+                                .fill(calendarColor.opacity(0.3))
                         }
                         
                         if isHovering && !isMarked {

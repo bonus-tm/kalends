@@ -1,11 +1,13 @@
 import SwiftUI
+import Foundation
 
 struct MonthRowView: View {
     let month: Int
     let year: Int
     @Binding var markedDays: [Date: Bool]
+    var calendarColor: Color
     
-    private let calendar = Calendar.current
+    private let calendar = Foundation.Calendar.current
     private let daysInWeek = 31
     
     var body: some View {
@@ -30,6 +32,7 @@ struct MonthRowView: View {
                         month: month,
                         year: year,
                         isMarked: isMarked(day: day),
+                        calendarColor: calendarColor,
                         onToggle: { toggleDay(day: day) }
                     )
                 }

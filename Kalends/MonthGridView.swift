@@ -8,14 +8,16 @@
 
 
 import SwiftUI
+import Foundation
 
 struct MonthGridView: View {
     let month: Int
     let year: Int
     @Binding var markedDays: [Date: Bool]
+    var calendarColor: Color
     
-    private let calendar = Calendar.current
-    private let weekdaySymbols = Calendar.current.veryShortWeekdaySymbols
+    private let calendar = Foundation.Calendar.current
+    private let weekdaySymbols = Foundation.Calendar.current.veryShortWeekdaySymbols
     
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -49,6 +51,7 @@ struct MonthGridView: View {
                                     month: month,
                                     year: year,
                                     isMarked: isMarked(day: day),
+                                    calendarColor: calendarColor,
                                     onToggle: { toggleDay(day: day) }
                                 )
                                 .frame(width: 30, height: 30)

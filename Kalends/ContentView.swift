@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 enum ViewMode: String, CaseIterable {
     case monthRows = "month-rows"
@@ -15,14 +16,13 @@ struct ViewModeSwitcher: View {
                     selectedMode = mode
                 }) {
                     Image(systemName: imageForMode(mode))
-                        .frame(width: 40, height: 30)
                         .foregroundColor(selectedMode == mode ? .accentColor : .primary)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedMode == mode ? Color.accentColor.opacity(0.1) : Color.clear)
-                        )
                 }
-                .buttonStyle(PlainButtonStyle())
+                .frame(width: 40, height: 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(selectedMode == mode ? Color.accentColor.opacity(0.1) : Color.clear)
+                )
                 .contentShape(Rectangle())
             }
         }
@@ -77,28 +77,51 @@ struct YearNavigationView: View {
 
 struct ContentView: View {
     @EnvironmentObject private var dataManager: DataManager
-    @State private var currentYear: Int = Calendar.current.component(.year, from: Date())
+    @State private var currentYear: Int = Foundation.Calendar.current.component(.year, from: Date())
     
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Top bar with year navigation and view mode switcher
-                HStack {
+        NavigationView {
+            // Sidebar
+            CalendarSidebarView()
+            
+            // Main content
+            GeometryReader { geometry in
+                VStack(spacing: 0) {
+                    // Top bar with year navigation and view mode switcher
+                    HStack {
+                        Spacer()
+                        YearNavigationView(currentYear: $currentYear)
+                        Spacer()
+                        ViewModeSwitcher(selectedMode: $dataManager.viewMode)
+                    }
+                    .padding([.top, .trailing], 10)
+                    
+                    // Content based on view mode
+                    if dataManager.viewMode == .monthRows {
+                        monthRowsView
+                    } else {
+                        monthsGridView
+                    }
                     Spacer()
-                    YearNavigationView(currentYear: $currentYear)
-                    Spacer()
-                    ViewModeSwitcher(selectedMode: $dataManager.viewMode)
                 }
-                .padding([.top, .trailing], 10)
-                
-                // Content based on view mode
-                if dataManager.viewMode == .monthRows {
-                    monthRowsView
-                } else {
-                    monthsGridView
-                }
-                Spacer()
             }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: toggleSidebar) {
+                    Image(systemName: "sidebar.left")
+                }
+            }
+        }
+        .sheet(isPresented: $dataManager.showingNewCalendarSheet) {
+            NewCalendarView { newCalendar in
+                dataManager.addCalendar(newCalendar)
+                dataManager.setActiveCalendar(newCalendar)
+                dataManager.hideNewCalendarSheet()
+            }
+        }
+        .onCommand(#selector(NSDocumentController.newDocument(_:))) {
+            dataManager.showNewCalendarSheet()
         }
     }
     
@@ -107,7 +130,12 @@ struct ContentView: View {
         ScrollView {
             VStack(spacing: 10) {
                 ForEach(1...12, id: \.self) { month in
-                    MonthRowView(month: month, year: currentYear, markedDays: $dataManager.markedDays)
+                    MonthRowView(
+                        month: month,
+                        year: currentYear,
+                        markedDays: $dataManager.markedDays,
+                        calendarColor: dataManager.activeCalendar?.color ?? Color.accentColor
+                    )
                 }
             }
             .padding()
@@ -125,10 +153,19 @@ struct ContentView: View {
                 GridItem(.fixed(monthWidth))
             ], alignment: .center) {
                 ForEach(1...12, id: \.self) { month in
-                    MonthGridView(month: month, year: currentYear, markedDays: $dataManager.markedDays)
+                    MonthGridView(
+                        month: month,
+                        year: currentYear,
+                        markedDays: $dataManager.markedDays,
+                        calendarColor: dataManager.activeCalendar?.color ?? Color.accentColor
+                    )
                 }
             }
             .padding()
         }
+    }
+    
+    private func toggleSidebar() {
+        NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
     }
 } 

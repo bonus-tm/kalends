@@ -13,7 +13,12 @@ struct KalendsApp: App {
         .windowToolbarStyle(UnifiedWindowToolbarStyle())
         .windowResizability(.contentSize)
         .commands {
-            CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .newItem) {
+                Button("New Calendar...") {
+                    dataManager.showNewCalendarSheet()
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
         }
         .defaultSize(width: 800, height: 600)
         .defaultPosition(.center)
