@@ -1,11 +1,15 @@
 import SwiftUI
 import Combine
+import Foundation
 
 class DataManager: ObservableObject {
     @Published var viewMode: ViewMode = .monthRows
     @Published var calendars: [KalendsCalendar] = []
     @Published var activeCalendarId: String?
     @Published var showingNewCalendarSheet = false
+    
+    // Flag for testing to skip persistence operations
+    var skipPersistence = false
     
     private let viewModeKey = "viewMode"
     private let calendarsDirectory = "calendars"
@@ -16,23 +20,44 @@ class DataManager: ObservableObject {
     var markedDays: [Date: Bool] {
         get {
             guard let activeCalendar = activeCalendar else { return [:] }
+            
             let dateFormatter = ISO8601DateFormatter()
-            return activeCalendar.markedDays.compactMapKeys { key in
-                dateFormatter.date(from: key)
+            var result = [Date: Bool]()
+            
+            for (stringDate, value) in activeCalendar.markedDays {
+                if let date = dateFormatter.date(from: stringDate) {
+                    let normalized = normalizeDate(date)
+                    result[normalized] = value
+                }
             }
+            
+            return result
         }
         set {
-            guard var activeCalendar = activeCalendar, let index = calendars.firstIndex(of: activeCalendar) else { return }
-            
-            let dateFormatter = ISO8601DateFormatter()
-            let stringDict = newValue.compactMapKeys { date in
-                dateFormatter.string(from: date)
+            guard var activeCalendar = activeCalendar, let index = calendars.firstIndex(of: activeCalendar) else { 
+                return 
             }
             
-            activeCalendar.markedDays = stringDict
+            let dateFormatter = ISO8601DateFormatter()
+            var newMarkedDays = [String: Bool]()
+            
+            for (date, value) in newValue {
+                let normalizedDate = normalizeDate(date)
+                let stringDate = dateFormatter.string(from: normalizedDate)
+                newMarkedDays[stringDate] = value
+            }
+            
+            activeCalendar.markedDays = newMarkedDays
             calendars[index] = activeCalendar
             saveCalendar(activeCalendar)
         }
+    }
+    
+    // Helper method to normalize dates by removing time components
+    private func normalizeDate(_ date: Date) -> Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return calendar.date(from: components)!
     }
     
     var activeCalendar: KalendsCalendar? {
@@ -43,6 +68,7 @@ class DataManager: ObservableObject {
     }
     
     init() {
+        // Ensure we handle async operations appropriately
         loadViewMode()
         loadCalendars()
         loadActiveCalendarId()
@@ -81,34 +107,43 @@ class DataManager: ObservableObject {
         saveCalendar(calendar)
         
         // Make this the active calendar if it's the first one
-        if calendars.count == 1 {
-            DispatchQueue.main.async { [weak self] in
-                self?.activeCalendarId = calendar.id
-            }
+        if calendars.count == 1 || activeCalendarId == nil {
+            activeCalendarId = calendar.id
         }
     }
     
     func deleteCalendar(_ calendar: KalendsCalendar) {
-        calendars.removeAll { $0.id == calendar.id }
+        // First find the index of the calendar to delete
+        guard let index = calendars.firstIndex(where: { $0.id == calendar.id }) else {
+            return
+        }
+        
+        // Store the ID to check if this is the active calendar
+        let deletedId = calendar.id
+        
+        // Remove the calendar from the array
+        calendars.remove(at: index)
+        
+        // Delete the persisted file
         deleteCalendarFile(calendar)
         
-        // If we deleted the active calendar, select another one
-        if activeCalendarId == calendar.id {
-            DispatchQueue.main.async { [weak self] in
-                self?.activeCalendarId = self?.calendars.first?.id
-            }
+        // If we deleted the active calendar, select another one if available
+        if activeCalendarId == deletedId {
+            activeCalendarId = calendars.first?.id
         }
     }
     
     func setActiveCalendar(_ calendar: KalendsCalendar) {
-        DispatchQueue.main.async { [weak self] in
-            self?.activeCalendarId = calendar.id
+        // Ensure the calendar exists in our array before setting it active
+        if calendars.contains(where: { $0.id == calendar.id }) {
+            activeCalendarId = calendar.id
         }
     }
     
     // MARK: - Persistence
     
     private func loadViewMode() {
+        if skipPersistence { return }
         if let rawValue = UserDefaults.standard.string(forKey: viewModeKey),
            let mode = ViewMode(rawValue: rawValue) {
             viewMode = mode
@@ -116,14 +151,17 @@ class DataManager: ObservableObject {
     }
     
     private func saveViewMode() {
+        if skipPersistence { return }
         UserDefaults.standard.set(viewMode.rawValue, forKey: viewModeKey)
     }
     
     private func loadActiveCalendarId() {
+        if skipPersistence { return }
         activeCalendarId = UserDefaults.standard.string(forKey: activeCalendarKey)
     }
     
     private func saveActiveCalendarId() {
+        if skipPersistence { return }
         UserDefaults.standard.set(activeCalendarId, forKey: activeCalendarKey)
     }
     
@@ -147,6 +185,8 @@ class DataManager: ObservableObject {
     }
     
     private func loadCalendars() {
+        if skipPersistence { return }
+        
         let directory = getCalendarsDirectory()
         
         // Get all calendar files
@@ -169,6 +209,8 @@ class DataManager: ObservableObject {
     }
     
     private func saveCalendar(_ calendar: KalendsCalendar) {
+        if skipPersistence { return }
+        
         let fileURL = getCalendarURL(calendar)
         let encoder = PropertyListEncoder()
         
@@ -178,6 +220,8 @@ class DataManager: ObservableObject {
     }
     
     private func deleteCalendarFile(_ calendar: KalendsCalendar) {
+        if skipPersistence { return }
+        
         let fileURL = getCalendarURL(calendar)
         try? FileManager.default.removeItem(at: fileURL)
     }

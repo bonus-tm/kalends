@@ -45,7 +45,7 @@ struct DaySquareView: View {
         }
     }
     
-    private var isCurrentDay: Bool {
+    var isCurrentDay: Bool {
         let today = Date()
         let components = calendar.dateComponents([.year, .month, .day], from: today)
         return components.year == year && components.month == month && components.day == day

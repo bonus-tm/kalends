@@ -56,10 +56,9 @@ struct DaySquareViewTests {
             onToggle: {}
         )
         
-        // Get access to private property using reflection
-        let mirror = Mirror(reflecting: todayView)
-        let isCurrentDay = await mirror.children
-            .first(where: { $0.label == "isCurrentDay" })?.value as? Bool ?? false
+        // Directly access the computed property since it's used in the View body
+        // This is better than using reflection which might be fragile
+        let isCurrentDay = todayView.isCurrentDay
         
         // Verify it detects today correctly
         #expect(isCurrentDay)
@@ -77,10 +76,8 @@ struct DaySquareViewTests {
             onToggle: {}
         )
         
-        // Get access to private property using reflection
-        let tomorrowMirror = Mirror(reflecting: tomorrowView)
-        let isTomorrowCurrentDay = await tomorrowMirror.children
-            .first(where: { $0.label == "isCurrentDay" })?.value as? Bool ?? false
+        // Directly access the computed property
+        let isTomorrowCurrentDay = tomorrowView.isCurrentDay
         
         // Verify it's not detected as today
         #expect(!isTomorrowCurrentDay)
